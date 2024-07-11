@@ -11,4 +11,18 @@ class TrackingSimulator {
 
     fun runSimulation() {
     }
+
+    fun createShipment(id: String) {
+        val shipment = Shipment(
+            status = "created",
+            id = id,
+            notes = mutableListOf(),
+            updateHistory = mutableListOf(),
+            expectedDeliveryDateTimestamp = 0L,
+            currentLocation = "",
+            strategy = CreatedUpdateStrategy(),
+            observers = mutableListOf()
+        )
+        shipments.add(shipment)
+    }
 }
