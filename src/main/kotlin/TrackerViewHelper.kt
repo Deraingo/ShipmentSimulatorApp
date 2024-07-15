@@ -10,56 +10,50 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 
 @Composable
 fun TrackerViewHelper() {
-    val trackingSimulator = remember { mutableStateOf(TrackingSimulator()) }
+    val trackingSimulator = remember { TrackingSimulator() }
     val shipmentId = remember { mutableStateOf(TextFieldValue("")) }
     val trackedShipments = remember { mutableStateListOf<Shipment>() }
-    var shipmentTotes by remember { mutableStateOf(listOf<String>()) }
-    var shipmentUpdateHistory by remember { mutableStateOf(listOf<String>()) }
-    var expectedShipmentDeliveryDate by remember { mutableStateOf("") }
-    var shipmentStatus by remember { mutableStateOf("") }
-    val userObserver = UserObserver()
     var warningMessage by remember { mutableStateOf<String?>(null) }
-
+    val userObserver = UserObserver()
 
     fun trackShipment(id: String) {
-        val shipment = trackingSimulator.value.findShipment(id)
-        shipment?.registerObserver(userObserver)
+        if (id.length == 6 && id.startsWith("S") && id.drop(1).all { it.isDigit() }) {
+            val shipment = trackingSimulator.createNewShipment(id)
+            shipment.registerObserver(userObserver)
+            trackedShipments.add(shipment)
+            warningMessage = null
+        } else {
+            warningMessage = "Invalid Shipment ID. It should be 6 characters long, start with 'S' and be followed by numbers."
+        }
     }
 
-    fun stopTracking() {
+    fun stopTracking(shipment: Shipment) {
+        shipment.removeObserver(userObserver)
+        trackedShipments.remove(shipment)
     }
 
+    GlobalScope.launch {
+        trackingSimulator.simulateUpdates()
+    }
 
     Column {
         TextField(
             value = shipmentId.value,
-            onValueChange = {
-                if (it.text.length <= 6) {
-                    shipmentId.value = it
-                }
-            },
+            onValueChange = { shipmentId.value = it },
             label = { Text("Enter Shipment ID") },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text)
         )
-        Button(onClick = {
-            if (shipmentId.value.text.length == 6 && shipmentId.value.text.startsWith("S")) {
-                val shipment = trackingSimulator.value.findShipment(shipmentId.value.text)
-                if (shipment != null) {
-                    trackedShipments.add(shipment)
-                    warningMessage = null
-                } else {
-                    warningMessage = "Shipment doesn't exist"
-                }
-            } else {
-                warningMessage = "Invalid Shipment ID. It should be 6 characters long and start with 'S'."
-            }
-        }) {
+        Button(onClick = { trackShipment(shipmentId.value.text) }) {
             Text("Track")
         }
-        if(warningMessage != null){
+        if (warningMessage != null) {
             Card(
                 modifier = Modifier.padding(top = 8.dp),
                 backgroundColor = Color.Red,
@@ -79,7 +73,7 @@ fun TrackerViewHelper() {
                     Text(text = "Location: ${shipment.currentLocation}")
                     Text(text = "Expected Delivery: ${shipment.expectedDeliveryDateTimestamp}")
                     Text(text = "Notes: ${shipment.notes.joinToString()}")
-                    IconButton(onClick = { trackedShipments.remove(shipment) }) {
+                    IconButton(onClick = { stopTracking(shipment) }) {
                         Icon(Icons.Filled.Close, contentDescription = "Stop Tracking")
                     }
                 }
