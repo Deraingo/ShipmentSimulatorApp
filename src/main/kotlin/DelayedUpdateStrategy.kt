@@ -1,6 +1,6 @@
-class ShippedUpdateStrategy : ShippingStatusUpdateStrategy {
+class DelayedUpdateStrategy : ShippingStatusUpdateStrategy {
     override fun update(shipment: Shipment, update: ShippingUpdate) {
-        shipment.status = "shipped"
+        shipment.status = "delayed"
         shipment.expectedDeliveryDateTimestamp = (update.otherInfo as? Long) ?: 0L
     }
 }

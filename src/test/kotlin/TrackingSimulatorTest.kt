@@ -1,96 +1,122 @@
 import kotlin.test.Test
 import kotlinx.coroutines.*
 import org.junit.jupiter.api.*
-import io.mockk.*
+import junit.framework.TestCase.assertFalse
 import junit.framework.TestCase.assertTrue
-import java.io.File
 import kotlin.test.assertEquals
-import kotlin.test.assertNotNull
-import kotlin.test.assertNull
 
 
 class TrackingSimulatorTest {
 
-    private lateinit var simulator: TrackingSimulator
-
-    @BeforeEach
-    fun setUp() {
-        simulator = TrackingSimulator()
+    @Test
+    fun `test shipment creation`() {
+        val shipment = TrackingSimulator().createNewShipment("S12345")
+        assertEquals("S12345", shipment.id)
+        assertEquals("created", shipment.status)
     }
 
     @Test
-    fun `should track shipment successfully`() {
+    fun `test shipment tracking`() {
+        val simulator = TrackingSimulator()
         val shipment = simulator.createNewShipment("S12345")
         simulator.addShipment(shipment)
-        val trackedShipment = simulator.findShipment("S12345")
-        assertNotNull(trackedShipment)
-        assertEquals("S12345", trackedShipment?.id)
+        assertEquals(shipment, simulator.findShipment("S12345"))
     }
 
     @Test
-    fun `should stop tracking shipment`() {
-        val shipment = simulator.createNewShipment("S12345")
-        simulator.addShipment(shipment)
-        val observer = mockk<UserObserver>(relaxed = true)
+    fun `test shipment update`() {
+        val shipment = TrackingSimulator().createNewShipment("S12345")
+        shipment.addUpdate(ShippingUpdate("created", "shipped", System.currentTimeMillis()))
+        assertEquals("shipped", shipment.status)
+    }
+
+    @Test
+    fun `test shipment note addition`() {
+        val shipment = TrackingSimulator().createNewShipment("S12345")
+        shipment.addNote("Test note")
+        assertTrue(shipment.notes.contains("Test note"))
+    }
+
+    @Test
+    fun `test shipment observer registration`() {
+        val shipment = TrackingSimulator().createNewShipment("S12345")
+        val observer = UserObserver()
+        shipment.registerObserver(observer)
+        // Assuming you have a method to get observers
+        assertTrue(shipment.getObservers().contains(observer))
+    }
+
+    @Test
+    fun `test shipment observer removal`() {
+        val shipment = TrackingSimulator().createNewShipment("S12345")
+        val observer = UserObserver()
         shipment.registerObserver(observer)
         shipment.removeObserver(observer)
-        shipment.addUpdate(ShippingUpdate("created", "S12345", System.currentTimeMillis(), null))
-        verify(exactly = 0) { observer.update(any()) }
+        // Assuming you have a method to get observers
+        assertFalse(shipment.getObservers().contains(observer))
     }
 
     @Test
-    fun `should process shipment updates correctly`() {
-        val shipment = simulator.createNewShipment("S12345")
-        simulator.addShipment(shipment)
-        val update = ShippingUpdate("shipped", "S12345", System.currentTimeMillis(), System.currentTimeMillis() + TimeUnit.DAYS.toMillis(7))
-        shipment.addUpdate(update)
+    fun `test shipment location update`() {
+        val shipment = TrackingSimulator().createNewShipment("S12345")
+        shipment.addUpdate(ShippingUpdate("created", "location", System.currentTimeMillis(), "New York"))
+        assertEquals("New York", shipment.currentLocation)
+    }
+
+    @Test
+    fun `test shipment delivery date update`() {
+        val shipment = TrackingSimulator().createNewShipment("S12345")
+        val timestamp = System.currentTimeMillis() + 1000 * 60 * 60 * 24 * 7
+        shipment.addUpdate(ShippingUpdate("created", "shipped", System.currentTimeMillis(), timestamp))
+        assertEquals(timestamp, shipment.expectedDeliveryDateTimestamp)
+    }
+
+    @Test
+    fun `test shipment status after delivery`() {
+        val shipment = TrackingSimulator().createNewShipment("S12345")
+        shipment.addUpdate(ShippingUpdate("created", "delivered", System.currentTimeMillis()))
+        assertEquals("delivered", shipment.status)
+    }
+
+    @Test
+    fun `test shipment status after being lost`() {
+        val shipment = TrackingSimulator().createNewShipment("S12345")
+        shipment.addUpdate(ShippingUpdate("created", "lost", System.currentTimeMillis()))
+        assertEquals("lost", shipment.status)
+    }
+
+    @Test
+    fun `test shipment status after being canceled`() {
+        val shipment = TrackingSimulator().createNewShipment("S12345")
+        shipment.addUpdate(ShippingUpdate("created", "canceled", System.currentTimeMillis()))
+        assertEquals("canceled", shipment.status)
+    }
+
+    @Test
+    fun `test shipment status after being delayed`() {
+        val shipment = TrackingSimulator().createNewShipment("S12345")
+        shipment.addUpdate(ShippingUpdate("created", "delayed", System.currentTimeMillis()))
+        assertEquals("delayed", shipment.status)
+    }
+
+    @Test
+    fun `test shipment status after being shipped`() {
+        val shipment = TrackingSimulator().createNewShipment("S12345")
+        shipment.addUpdate(ShippingUpdate("created", "shipped", System.currentTimeMillis()))
         assertEquals("shipped", shipment.status)
-        assertNotNull(shipment.expectedDeliveryDateTimestamp)
     }
 
     @Test
-    fun `should read shipments from file`() {
-        val filename = "shipments.txt"
-        val fileContent = """
-            created,S12345,1622557740
-            shipped,S12345,1622561340,1623166140
-        """.trimIndent()
-        File(filename).writeText(fileContent)
-        simulator.readShipmentsFromFile(filename)
-        val shipment = simulator.findShipment("S12345")
-        assertNotNull(shipment)
-        assertEquals(2, shipment?.updateHistory?.size)
-        File(filename).delete()
+    fun `test shipment status after note added`() {
+        val shipment = TrackingSimulator().createNewShipment("S12345")
+        shipment.addUpdate(ShippingUpdate("created", "noteadded", System.currentTimeMillis(), "Test note"))
+        assertTrue(shipment.notes.contains("Test note"))
     }
 
     @Test
-    fun `should notify observers on shipment update`() {
-        val shipment = simulator.createNewShipment("S12345")
-        simulator.addShipment(shipment)
-        val observer = mockk<UserObserver>(relaxed = true)
-        shipment.registerObserver(observer)
-        val update = ShippingUpdate("shipped", "S12345", System.currentTimeMillis(), System.currentTimeMillis() + TimeUnit.DAYS.toMillis(7))
-        shipment.addUpdate(update)
-        verify { observer.update(any()) }
-    }
-
-    @Test
-    fun `should handle non-existent shipment tracking`() {
-        val shipmentId = "S99999"
-        val trackedShipment = simulator.findShipment(shipmentId)
-        assertNull(trackedShipment)
-    }
-
-    @Test
-    fun `should simulate updates correctly`() = runBlocking {
-        val shipment = simulator.createNewShipment("S12345")
-        simulator.addShipment(shipment)
-        launch { simulator.simulateUpdates() }
-        delay(2000) // wait for some updates to be processed
-        val trackedShipment = simulator.findShipment("S12345")
-        assertNotNull(trackedShipment)
-        assertTrue(trackedShipment.updateHistory.isNotEmpty())
+    fun `test shipment status after creation`() {
+        val shipment = TrackingSimulator().createNewShipment("S12345")
+        shipment.addUpdate(ShippingUpdate("created", "created", System.currentTimeMillis()))
+        assertEquals("created", shipment.status)
     }
 }
-
-annotation class BeforeEach

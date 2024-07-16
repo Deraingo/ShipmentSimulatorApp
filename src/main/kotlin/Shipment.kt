@@ -1,13 +1,21 @@
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+
 class Shipment(
-    var status: String,
+    status: String,
     val id: String,
-    val notes: MutableList<String>,
+    notes: MutableList<String>,
     val updateHistory: MutableList<ShippingUpdate>,
-    var expectedDeliveryDateTimestamp: Long,
-    var currentLocation: String,
+    expectedDeliveryDateTimestamp: Long,
+    currentLocation: String,
     private var strategy: ShippingStatusUpdateStrategy,
     private val observers: MutableList<UserInterface>
 ) {
+    var status by mutableStateOf(status)
+    var expectedDeliveryDateTimestamp by mutableStateOf(expectedDeliveryDateTimestamp)
+    var currentLocation by mutableStateOf(currentLocation)
+    var notes by mutableStateOf(notes)
     fun registerObserver(observer: UserInterface) {
         observers.add(observer)
     }
@@ -16,12 +24,17 @@ class Shipment(
         observers.remove(observer)
     }
 
-    fun notifyObservers() {
+    private fun notifyObservers() {
         observers.forEach { it.update(this) }
+    }
+
+    fun getObservers(): List<UserInterface> {
+        return observers.toList()
     }
 
     fun addUpdate(update: ShippingUpdate) {
         updateHistory.add(update)
+        setStrategyBasedOnStatus(update.newStatus)
         strategy.update(this, update)
         notifyObservers()
     }
@@ -32,5 +45,16 @@ class Shipment(
 
     fun changeStrategy(strategy: ShippingStatusUpdateStrategy) {
         this.strategy = strategy
+    }
+
+    private fun setStrategyBasedOnStatus(status: String) {
+        strategy = when (status) {
+            "created" -> CreatedUpdateStrategy()
+            "delayed" -> DelayedUpdateStrategy()
+            "delivered" -> DeliveredUpdateStrategy()
+            "location" -> LocationUpdateStrategy()
+            "shipped" -> ShippedUpdateStrategy()
+            else -> strategy
+        }
     }
 }

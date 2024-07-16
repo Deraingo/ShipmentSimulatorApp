@@ -25,16 +25,16 @@ class TrackingSimulator {
 
         while (true) {
             shipments.forEach { shipment ->
-                if (shipment.currentLocation != "Logan UT") {
-                    val status = when (random.nextInt(7)) {
+                if (shipment.currentLocation != "Logan UT" && shipment.status != "delivered") {
+                    val status = when (random.nextInt(6)) {
                         0 -> "shipped"
                         1 -> "location"
                         2 -> "delivered"
                         3 -> "delayed"
                         4 -> "lost"
-                        5 -> "canceled"
                         else -> "noteadded"
                     }
+
                     val timestamp = System.currentTimeMillis()
                     val otherInfo = when (status) {
                         "shipped", "delayed" -> timestamp + TimeUnit.DAYS.toMillis(7)
@@ -42,11 +42,26 @@ class TrackingSimulator {
                         "noteadded" -> notes.random()
                         else -> null
                     }
-                    val update = ShippingUpdate(status, shipment.id, timestamp, otherInfo)
+                    val previousStatus = shipment.status
+                    val update = ShippingUpdate(previousStatus, status, timestamp, otherInfo)
+
                     shipment.addUpdate(update)
+
+                    when (status) {
+                        "location" -> {
+                            shipment.currentLocation = otherInfo as String
+                        }
+                        "noteadded" -> {
+                            shipment.addNote(otherInfo as String)
+                        }
+                        "shipped", "delayed" -> {
+                            shipment.expectedDeliveryDateTimestamp = getRandomFutureTimestamp()
+                        }
+                    }
 
                     if (shipment.currentLocation == "Logan UT") {
                         shipment.changeStrategy(DeliveredUpdateStrategy())
+                        shipment.status = "delivered"
                     }
                 }
             }
@@ -54,18 +69,25 @@ class TrackingSimulator {
         }
     }
 
+    private fun getRandomFutureTimestamp(): Long {
+        val now = System.currentTimeMillis()
+        val oneWeekFromNow = now + TimeUnit.DAYS.toMillis(7)
+        return (now..oneWeekFromNow).random()
+    }
+
     fun addShipment(shipment: Shipment) {
         shipments.add(shipment)
     }
 
     fun createNewShipment(id: String): Shipment {
+        val initialLocation = "Los Angeles CA"  // Start with a predefined location
         val shipment = Shipment(
             status = "created",
             id = id,
             notes = mutableListOf(),
             updateHistory = mutableListOf(),
             expectedDeliveryDateTimestamp = 0L,
-            currentLocation = "",
+            currentLocation = initialLocation,
             strategy = CreatedUpdateStrategy(),
             observers = mutableListOf()
         )
@@ -81,7 +103,7 @@ class TrackingSimulator {
             val shipmentId = parts[1]
             val timestampOfUpdate = parts[2].toLong()
             val otherInfo = if (parts.size > 3) parts[3] else null
-            val update = ShippingUpdate(updateType, shipmentId, timestampOfUpdate, otherInfo)
+            val update = ShippingUpdate(updateType, updateType, timestampOfUpdate, otherInfo)
             val shipment = findShipment(shipmentId) ?: createNewShipment(shipmentId)
             shipment.addUpdate(update)
         }

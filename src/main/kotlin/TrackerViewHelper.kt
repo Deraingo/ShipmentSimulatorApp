@@ -14,6 +14,8 @@ import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.*
 
 @Composable
 fun TrackerViewHelper() {
@@ -25,9 +27,18 @@ fun TrackerViewHelper() {
 
     fun trackShipment(id: String) {
         if (id.length == 6 && id.startsWith("S") && id.drop(1).all { it.isDigit() }) {
-            val shipment = trackingSimulator.createNewShipment(id)
-            shipment.registerObserver(userObserver)
-            trackedShipments.add(shipment)
+            val existingShipment = trackedShipments.find { it.id == id }
+            if (existingShipment != null) {
+                existingShipment.registerObserver(userObserver)
+                val update = trackingSimulator.getUpdateForShipment(id)
+                if (update != null) {
+                    existingShipment.addUpdate(update)
+                }
+            } else {
+                val shipment = trackingSimulator.createNewShipment(id)
+                shipment.registerObserver(userObserver)
+                trackedShipments.add(shipment)
+            }
             warningMessage = null
         } else {
             warningMessage = "Invalid Shipment ID. It should be 6 characters long, start with 'S' and be followed by numbers."
@@ -39,8 +50,21 @@ fun TrackerViewHelper() {
         trackedShipments.remove(shipment)
     }
 
-    GlobalScope.launch {
-        trackingSimulator.simulateUpdates()
+    fun convertTimestampToDate(timestamp: Long): String {
+        val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+        return sdf.format(Date(timestamp))
+    }
+    LaunchedEffect(key1 = Unit) {
+        while (true) {
+            delay(1000)  // delay for 1 second
+            trackingSimulator.simulateUpdates()
+            trackedShipments.forEach { shipment ->
+                val update = trackingSimulator.getUpdateForShipment(shipment.id)
+                if (update != null) {
+                    shipment.addUpdate(update)
+                }
+            }
+        }
     }
 
     Column {
@@ -62,16 +86,20 @@ fun TrackerViewHelper() {
                 Text(text = warningMessage!!)
             }
         }
-        trackedShipments.forEach { shipment ->
+        val uiTrackedShipments by derivedStateOf { trackedShipments.toList() }
+        uiTrackedShipments.forEach { shipment ->
             Card(
                 modifier = Modifier.padding(top = 8.dp),
                 elevation = 4.dp
             ) {
                 Column {
+                    userObserver.shipmentUpdateHistory.forEach { update ->
+                        Text(text = update)
+                    }
                     Text(text = "Shipment ID: ${shipment.id}")
                     Text(text = "Status: ${shipment.status}")
                     Text(text = "Location: ${shipment.currentLocation}")
-                    Text(text = "Expected Delivery: ${shipment.expectedDeliveryDateTimestamp}")
+                    Text(text = "Expected Delivery: ${convertTimestampToDate(shipment.expectedDeliveryDateTimestamp)}")
                     Text(text = "Notes: ${shipment.notes.joinToString()}")
                     IconButton(onClick = { stopTracking(shipment) }) {
                         Icon(Icons.Filled.Close, contentDescription = "Stop Tracking")
