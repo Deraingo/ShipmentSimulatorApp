@@ -95,19 +95,5 @@ class TrackingSimulator {
         shipments.add(shipment)
         return shipment
     }
-
-    fun readShipmentsFromFile(filename: String) {
-        val lines = File(filename).readLines()
-        lines.forEach { line ->
-            val parts = line.split(",")
-            val updateType = parts[0]
-            val shipmentId = parts[1]
-            val timestampOfUpdate = parts[2].toLong()
-            val otherInfo = if (parts.size > 3) parts[3] else null
-            val update = ShippingUpdate(updateType, updateType, timestampOfUpdate, otherInfo)
-            val shipment = findShipment(shipmentId) ?: createNewShipment(shipmentId)
-            shipment.addUpdate(update)
-        }
-    }
 }
 
