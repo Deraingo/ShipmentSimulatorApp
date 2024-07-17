@@ -56,7 +56,7 @@ fun TrackerViewHelper() {
     }
     LaunchedEffect(key1 = Unit) {
         while (true) {
-            delay(1000)  // delay for 1 second
+            delay(1000)
             trackingSimulator.simulateUpdates()
             trackedShipments.forEach { shipment ->
                 val update = trackingSimulator.getUpdateForShipment(shipment.id)

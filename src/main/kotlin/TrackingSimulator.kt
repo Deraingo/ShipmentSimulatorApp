@@ -81,7 +81,7 @@ class TrackingSimulator {
     }
 
     fun createNewShipment(id: String): Shipment {
-        val initialLocation = "Los Angeles CA"  // Start with a predefined location
+        val initialLocation = "Los Angeles CA"
         val shipment = Shipment(
             status = "created",
             id = id,
