@@ -16,7 +16,7 @@ class TrackingSimulator {
 
     suspend fun simulateUpdates() {
         val random = Random.Default
-        val cities = listOf("Los Angeles CA", "New York NY", "Chicago IL", "Salt Lake City UT", "Denver CO", "Logan UT")
+        val cities = listOf("Los Angeles, CA", "New York, NY", "Chicago, IL", "Salt Lake City, UT", "Denver, CO", "Logan, UT")
         val notes = listOf(
             "Damaged slightly during shipping",
             "Shipping label reprinted due to damage",
@@ -25,7 +25,8 @@ class TrackingSimulator {
 
         while (true) {
             shipments.forEach { shipment ->
-                if (shipment.currentLocation != "Logan UT" && shipment.status != "delivered") {
+                if (shipment.currentLocation != "Logan, UT" && shipment.status != "delivered") {
+
                     val status = when (random.nextInt(6)) {
                         0 -> "shipped"
                         1 -> "location"
@@ -59,7 +60,7 @@ class TrackingSimulator {
                         }
                     }
 
-                    if (shipment.currentLocation == "Logan UT") {
+                    if (shipment.currentLocation == "Logan, UT") {
                         shipment.changeStrategy(DeliveredUpdateStrategy())
                         shipment.status = "delivered"
                     }

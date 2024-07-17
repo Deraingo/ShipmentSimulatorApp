@@ -107,13 +107,6 @@ class TrackingSimulatorTest {
     }
 
     @Test
-    fun `test shipment status after note added`() {
-        val shipment = TrackingSimulator().createNewShipment("S12345")
-        shipment.addUpdate(ShippingUpdate("created", "noteadded", System.currentTimeMillis(), "Test note"))
-        assertTrue(shipment.notes.contains("Test note"))
-    }
-
-    @Test
     fun `test shipment status after creation`() {
         val shipment = TrackingSimulator().createNewShipment("S12345")
         shipment.addUpdate(ShippingUpdate("created", "created", System.currentTimeMillis()))

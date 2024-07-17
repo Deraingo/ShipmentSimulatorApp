@@ -60,7 +60,7 @@ fun TrackerViewHelper() {
             trackingSimulator.simulateUpdates()
             trackedShipments.forEach { shipment ->
                 val update = trackingSimulator.getUpdateForShipment(shipment.id)
-                if (update != null) {
+                if (update != null && !(shipment.currentLocation == "Logan, UT" && shipment.status == "delivered")) {
                     shipment.addUpdate(update)
                 }
             }
