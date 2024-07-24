@@ -1,5 +1,10 @@
+import io.ktor.client.*
+import io.ktor.client.engine.cio.*
+import io.ktor.client.request.*
+import io.ktor.client.statement.*
+import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import com.fasterxml.jackson.module.kotlin.readValue
 import kotlinx.coroutines.delay
-import java.io.File
 import java.util.concurrent.TimeUnit
 import kotlin.random.Random
 
@@ -13,6 +18,11 @@ class TrackingSimulator {
     fun getUpdateForShipment(id: String): ShippingUpdate? {
         return shipments.find { it.id == id }?.updateHistory?.lastOrNull()
     }
+
+    fun addShipment(shipment: Shipment) {
+        shipments.add(shipment)
+    }
+
 
     suspend fun simulateUpdates() {
         val random = Random.Default
@@ -76,9 +86,6 @@ class TrackingSimulator {
         return (now..oneWeekFromNow).random()
     }
 
-    fun addShipment(shipment: Shipment) {
-        shipments.add(shipment)
-    }
 
     fun createNewShipment(id: String): Shipment {
         val initialLocation = "Los Angeles CA"
@@ -95,5 +102,31 @@ class TrackingSimulator {
         shipments.add(shipment)
         return shipment
     }
-}
 
+    private fun addUpdate(id: String, update: ShippingUpdate) {
+        val shipment = shipments.find { it.id == id }
+        shipment?.addUpdate(update)
+    }
+
+    suspend fun fetchUpdates() {
+        val client = HttpClient(CIO)
+        try {
+            val response: HttpResponse = client.get("http://localhost:3000/api/shipment/updates")
+            val jsonString = response.bodyAsText()
+            println("Response body: $jsonString")  // Log the raw response
+            val updates = parseUpdates(jsonString)
+            updates.forEach { update ->
+                addUpdate(update.id, update)
+            }
+        } catch (e: Exception) {
+            println("Error fetching updates: ${e.message}")
+        } finally {
+            client.close()
+        }
+    }
+
+    private fun parseUpdates(jsonString: String): List<ShippingUpdate> {
+        val mapper = jacksonObjectMapper()
+        return mapper.readValue(jsonString)
+    }
+}

@@ -10,9 +10,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
@@ -34,12 +32,17 @@ fun TrackerViewHelper() {
                 if (update != null) {
                     existingShipment.addUpdate(update)
                 }
+                warningMessage = null
             } else {
-                val shipment = trackingSimulator.createNewShipment(id)
-                shipment.registerObserver(userObserver)
-                trackedShipments.add(shipment)
+                val shipment = trackingSimulator.findShipment(id)
+                if (shipment != null) {
+                    shipment.registerObserver(userObserver)
+                    trackedShipments.add(shipment)
+                    warningMessage = null
+                } else {
+                    warningMessage = "No shipment with ID $id exists."
+                }
             }
-            warningMessage = null
         } else {
             warningMessage = "Invalid Shipment ID. It should be 6 characters long, start with 'S' and be followed by numbers."
         }
@@ -54,13 +57,14 @@ fun TrackerViewHelper() {
         val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
         return sdf.format(Date(timestamp))
     }
+
     LaunchedEffect(key1 = Unit) {
         while (true) {
-            delay(1000)
-            trackingSimulator.simulateUpdates()
+            delay(5000) // Poll every 5 seconds
+            trackingSimulator.fetchUpdates()
             trackedShipments.forEach { shipment ->
                 val update = trackingSimulator.getUpdateForShipment(shipment.id)
-                if (update != null && !(shipment.currentLocation == "Logan, UT" && shipment.status == "delivered")) {
+                if (update != null) {
                     shipment.addUpdate(update)
                 }
             }

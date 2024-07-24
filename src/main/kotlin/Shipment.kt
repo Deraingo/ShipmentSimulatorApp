@@ -16,6 +16,7 @@ class Shipment(
     var expectedDeliveryDateTimestamp by mutableStateOf(expectedDeliveryDateTimestamp)
     var currentLocation by mutableStateOf(currentLocation)
     var notes by mutableStateOf(notes)
+
     fun registerObserver(observer: UserInterface) {
         observers.add(observer)
     }
